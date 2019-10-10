@@ -4,6 +4,7 @@ Date: 09/23/2019
 Description: Syncs ADP data with AD
 '''
 import os
+import re
 import requests
 import stat
 import uuid
@@ -90,6 +91,16 @@ def GetDownloadProgress(driver):
 def GetLatestDownload(download_dir):
     return os.path.join(download_dir,os.listdir(download_dir)[0])
 
+def GetLastWord(str):
+    #Handle ()
+    if '(' in str:
+        str = str[0:str.index('(')]
+
+    text = str.split()
+    word = text[-1].replace('?', '')
+
+    return word
+
 #Login handles
 def LoginGoogle(driver, email='alex.willard@smdsi.com', password='TeslaR0X'):
     #Don't need in current senerio 
@@ -121,6 +132,35 @@ def LoginAdp(driver, username='AWillard@DisasterS', password='bvH3Sx77P4t91vkSfj
 def LoginAdpCheck(driver):
     url = driver.current_url
 
+def HandleAdpVerification(driver):
+    src = driver.page_source
+    text_found = re.search(r'Get a verification code', src)
+    #If there is text
+    if text_found:
+        #Get to questions
+         driver.find_element_by_xpath('//span[text()="Answer security questions"]').click()
+         driver.find_element_by_css_selector('button.primary.vdl-button.vdl-button--primary').click()
+
+         #Answer Questions
+         #Handle ()
+         time.sleep(1)
+         firstQuestion = driver.find_element_by_xpath('//label[@for="fristQuestion"]').text
+         firstAnswer = GetLastWord(firstQuestion)
+
+         secondQuestion = driver.find_element_by_xpath('//label[@for="confirmPassword"]').text
+         secondAnswer = GetLastWord(secondQuestion)
+
+         inputs = driver.find_elements_by_xpath('//form[@class="adp-form"]//input[@type="password"]')
+         inputs[0].send_keys(firstAnswer)
+         inputs[1].send_keys(secondAnswer)
+
+         driver.find_element_by_css_selector('button.primary.vdl-button.vdl-button--primary').click()
+
+    return driver
+        
+
+
+
 #Main
 startupCheck()
 
@@ -131,6 +171,8 @@ driver = NewDriver(download_dir)
 
 #Log into ADP and GMail
 LoginAdp(driver)
+#Handle Security Questions
+HandleAdpVerification(driver)
 #LoginGoogle(driver)
 
 #Run constant check in https://mail.google.com/mail/u/0/?tab=rm&ogbl#label/Application%2FADP+Report for new mail
