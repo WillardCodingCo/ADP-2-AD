@@ -5,12 +5,15 @@ Description: Syncs ADP data with AD
 '''
 import os
 import re
+import sys
 import requests
 import stat
 import uuid
 import errno
 import shutil
 import time
+import pyodbc
+import subprocess
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
@@ -180,13 +183,31 @@ url = GetLatestAdpDownloadUrl()
 
 #If new report then click link
 driver.get(url) 
-WaitForDownload(driver)
+#WaitForDownload(driver)
+time.sleep(5)
 download_file = GetLatestDownload(download_dir)
 
 #Fetch download location and find file 
-print(download_file)
-
-#Run insert script
-#AD and Sql? 
+#print(download_file)
 
 driver.quit()
+
+#Run insert script#
+conn = pyodbc.connect('Driver={SQL SERVER};'
+	       'Server=Smdsi-WH\SQlEXPRESS;'
+	       'Database=Staging;'
+	       'Trusted_Connection=yes;')
+cursor = conn.cursor()
+#Csv 2 Staging.dbo.Adp_ActiveDirectory
+cursor.execute('TRUNCATE TABLE Staging.dbo.Adp_ActiveDirectory')
+p = subprocess.Popen(["powershell.exe", ".\\import_csv.ps1 '" + download_file + "'"], stdout = sys.stdout)
+p.communicate()[0]
+
+#Staging.dbo.Adp_ActiveDirectory 2 Datawarehouse.dbo.Employees
+cursor.execute('Exec Staging.dbo.Staging_Adp_ActiveDirectory_To_Datawarehouse_Employees')
+
+conn.close()
+
+
+#Sql 2 Ad
+#p = subprocess.Popen(["powershell.exe", ""])
